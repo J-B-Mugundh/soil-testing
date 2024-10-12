@@ -6,6 +6,8 @@ import os
 import google.generativeai as genai
 import json
 import re
+import plotly.express as px
+import pandas as pd
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
@@ -13,8 +15,8 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 field_prompt = (
     "As an expert in location-based services and geospatial data, your task is to provide a precise and accurate list of nearby soil testing labs "
     "for the specified location. Please return the response in a well-structured JSON format. "
-    "Each entry should include the lab's name and a direct Google Maps link for easy navigation. "
-    "Ensure the JSON output follows this structure: [{'name': 'Lab 1', 'link': 'https://www.google.com/maps/...'}, ...]. "
+    "Each entry should include the lab's name, latitude, longitude, and a direct Google Maps link for easy navigation. "
+    "Ensure the JSON output follows this structure: [{'name': 'Lab 1', 'latitude': lat, 'longitude': lon, 'link': 'https://www.google.com/maps/...'}, ...]. "
     "Please make sure the response is clean and contains only the JSON data, without any additional explanations or text."
 )
 
@@ -63,6 +65,31 @@ if submit and location_input:
             # Parse the extracted JSON
             soil_labs = json.loads(json_data)
             st.subheader("Nearby Soil Testing Labs:")
+            
+            # Create a DataFrame for Plotly
+            map_data = pd.DataFrame({
+                "name": [lab['name'] for lab in soil_labs],
+                "latitude": [lab['latitude'] for lab in soil_labs],
+                "longitude": [lab['longitude'] for lab in soil_labs],
+                "link": [lab['link'] for lab in soil_labs]
+            })
+
+            # Create a Mapbox map with Plotly
+            fig = px.scatter_mapbox(
+                map_data,
+                lat="latitude",
+                lon="longitude",
+                hover_name="name",
+                hover_data={"link": False},
+                color_discrete_sequence=["blue"],
+                zoom=10,
+                height=600,
+            )
+            fig.update_layout(mapbox_style="open-street-map") 
+            fig.update_traces(marker=dict(size=10)) 
+
+            st.plotly_chart(fig)
+
             for lab in soil_labs:
                 st.write(f"**{lab['name']}** - [Google Maps Link]({lab['link']})")
         except json.JSONDecodeError:
